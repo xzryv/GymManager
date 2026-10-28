@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% block title %}Panel · GymManager{% endblock %}{% block content %}
+<section class="hero"><div><small>PANEL ZARZĄDZANIA</small><h1>Witaj w GymManager</h1><p>Klienci, karnety, trenerzy i zajęcia w jednym miejscu.</p></div><b>GM</b></section>
+<div class="stats">{% for label,value in [('Klienci',stats[0]),('Aktywne karnety',stats[1]),('Nadchodzące zajęcia',stats[2]),('Zapisy',stats[3])] %}<div class="stat"><span>{{ label }}</span><strong>{{ value }}</strong></div>{% endfor %}</div>
+<section class="panel"><h2>Najbliższe zajęcia</h2>{% if classes %}<table><tr><th>Zajęcia</th><th>Trener</th><th>Termin</th><th>Miejsca</th></tr>{% for cl in classes %}<tr><td>{{ cl.name }}</td><td>{{ cl.trainer }}</td><td>{{ cl.class_date }} {{ cl.class_time }}</td><td>{{ cl.booked }}/{{ cl.capacity }}</td></tr>{% endfor %}</table>{% else %}<p>Brak zajęć. Dodaj je w zakładce „Zajęcia”.</p>{% endif %}</section>{% endblock %}
