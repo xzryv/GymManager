@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Edytuj klienta{% endblock %}
+{% block content %}
+<section class="panel">
+    <h1>Edytuj klienta</h1>
+    <form method="post" class="form-grid">
+        <label>Imię i nazwisko<input name="name" value="{{ customer.name }}" required></label>
+        <label>E-mail<input type="email" name="email" value="{{ customer.email }}" required></label>
+        <label>Telefon<input name="phone" value="{{ customer.phone }}"></label>
+        <button type="submit">Zapisz zmiany</button>
+    </form>
+</section>
+{% endblock %}
