@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 import sqlite3
+from datetime import date
 
 app = Flask(__name__)
 app.secret_key = "gymmanager-secret"
@@ -100,7 +101,7 @@ def customers():
         name = request.form.get("name", "").strip()
         email = request.form.get("email", "").strip()
         phone = request.form.get("phone", "").strip()
-        if name and email:
+        if name and email and "@" in email:
             try:
                 db.execute("INSERT INTO customers (name, email, phone) VALUES (?, ?, ?)",
                            (name, email, phone))
@@ -129,7 +130,7 @@ def edit_customer(customer_id):
         name = request.form.get("name", "").strip()
         email = request.form.get("email", "").strip()
         phone = request.form.get("phone", "").strip()
-        if name and email:
+        if name and email and "@" in email:
             try:
                 db.execute("UPDATE customers SET name = ?, email = ?, phone = ? WHERE id = ?",
                            (name, email, phone, customer_id))
@@ -163,7 +164,14 @@ def memberships():
         plan = request.form.get("plan", "")
         start_date = request.form.get("start_date", "")
         end_date = request.form.get("end_date", "")
-        if customer_id and plan and start_date and end_date and end_date >= start_date:
+        try:
+            date.fromisoformat(start_date)
+            date.fromisoformat(end_date)
+            valid_dates = True
+        except ValueError:
+            valid_dates = False
+        customer = db.execute("SELECT id FROM customers WHERE id = ?", (customer_id,)).fetchone()
+        if customer and plan and valid_dates and end_date >= start_date:
             db.execute("""INSERT INTO memberships
                 (customer_id, plan, start_date, end_date) VALUES (?, ?, ?, ?)""",
                 (customer_id, plan, start_date, end_date))
@@ -175,7 +183,7 @@ def memberships():
     customers_list = db.execute("SELECT id, name FROM customers ORDER BY name").fetchall()
     rows = db.execute("""
         SELECT memberships.*, customers.name AS customer,
-        CASE WHEN memberships.end_date >= date('now') THEN 'Aktywny' ELSE 'Wygasły' END AS status
+        CASE WHEN memberships.start_date <= date('now') AND memberships.end_date >= date('now') THEN 'Aktywny' WHEN memberships.start_date > date('now') THEN 'Zaplanowany' ELSE 'Wygasły' END AS status
         FROM memberships JOIN customers ON memberships.customer_id = customers.id
         ORDER BY memberships.end_date DESC
     """).fetchall()
@@ -282,3 +290,5 @@ def bookings():
 if __name__ == "__main__":
     create_tables()
     app.run(host="127.0.0.1", port=5001, debug=False)
+
+
