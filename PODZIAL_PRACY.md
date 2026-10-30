@@ -1,28 +1,41 @@
-# Podział pracy w GymManager
+# Podział pracy i role w GymManager
 
-Projekt jest rozwijany przez trzy osoby w krótkich sprintach. Zadania są śledzone na tablicy Kanban w GitHub Projects.
+## Główne role
 
-## Osoba 1 — klienci i karnety
+### Osoba 1 — lider projektu i właściciel produktu
 
-- Branch: `feature/klienci-karnety`
-- Dodawanie, edycja, wyświetlanie i usuwanie klientów.
-- Walidacja danych klientów.
-- Dodawanie karnetów i sprawdzanie ich statusu.
+Osoba 1 zarządza całym projektem i wykonuje część 1 — klientów i karnety. Do jej zadań należy:
 
-## Osoba 2 — trenerzy, zajęcia i zapisy
+- ustalanie celu i kolejności zadań;
+- utrzymywanie backlogu produktu;
+- dzielenie pracy między trzy osoby;
+- pilnowanie sprintu i tablicy Kanban;
+- sprawdzanie postępu i łączenie zaakceptowanych Pull Requestów do `main`;
+- przygotowanie końcowej wersji projektu.
 
-- Branch: `feature/trenerzy-zajecia`
-- Dodawanie trenerów.
-- Tworzenie zajęć oraz przypisywanie trenerów.
-- Zapisywanie klientów i kontrola limitu miejsc.
+### Osoba 2 — programista modułu zajęć
 
-## Osoba 3 — interfejs i dokumentacja
+Odpowiada za trenerów, zajęcia i zapisy klientów. Pracuje na branchu `feature/osoba-2-trenerzy-zajecia`.
 
-- Branch: `feature/interfejs-dokumentacja`
-- Prosty interfejs desktopowy Tkinter.
-- Połączenie ekranów z bazą SQLite.
-- Instrukcja, README oraz dokumentacja Agile, Scrum i Kanban.
+### Osoba 3 — programista interfejsu i dokumentacji
 
-## Zasady GitHub
+Odpowiada za poprawki interfejsu desktopowego, integrację, sprawdzenie całości oraz dokumentację. Pracuje na branchu `feature/osoba-3-interfejs-dokumentacja`.
 
-Każda osoba pracuje na osobnym branchu. Commity opisują wykonane zmiany. Zmiany są wysyłane przez Pull Request do `main` i sprawdzane przez inną osobę.
+## Część 1 — klienci i karnety
+
+Właściciel: Osoba 1.
+
+- dodawanie, wyświetlanie, edycja i usuwanie klientów;
+- walidacja danych klientów;
+- dodawanie karnetów do klientów;
+- sprawdzanie dat i statusu karnetu.
+
+Szczegółowy opis branchu, commitów i Pull Requesta znajduje się w `CZESC_1_OSOBA_1.md`.
+
+## Wspólne zasady
+
+- Każda osoba pracuje na własnym branchu.
+- Zmiany trafiają do `main` przez Pull Request.
+- Osoba 1 koordynuje przegląd i integrację, ale każdą zmianę warto sprawdzić z autorem lub innym członkiem zespołu.
+- Commity opisują konkretne zmiany.
+- Zadania są widoczne na tablicy Kanban i wybierane do sprintu.

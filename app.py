@@ -3,6 +3,7 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import ttk, messagebox
 from datetime import date
+from customer_memberships import get_customers, add_customer, edit_customer, delete_customer, get_memberships, add_membership
 
 DB = Path(__file__).with_name("gymmanager.db")
 
@@ -170,9 +171,9 @@ class GymManager:
 
     def refresh_all(self):
         db = connect_db()
-        customers = db.execute("SELECT id, name, email, phone FROM customers ORDER BY name").fetchall()
+        customers = get_customers()
         trainers = db.execute("SELECT id, name, specialty FROM trainers ORDER BY name").fetchall()
-        memberships = db.execute("SELECT memberships.id, customers.name, memberships.plan, memberships.start_date, memberships.end_date, CASE WHEN memberships.start_date > date('now') THEN 'Zaplanowany' WHEN memberships.end_date >= date('now') THEN 'Aktywny' ELSE 'Wygasły' END FROM memberships JOIN customers ON customers.id = memberships.customer_id ORDER BY memberships.end_date DESC").fetchall()
+        memberships = get_memberships()
         classes = db.execute("SELECT classes.id, classes.name, COALESCE(trainers.name, ''), classes.class_date, classes.class_time, classes.capacity, COUNT(bookings.id) FROM classes LEFT JOIN trainers ON trainers.id = classes.trainer_id LEFT JOIN bookings ON bookings.class_id = classes.id GROUP BY classes.id ORDER BY classes.class_date, classes.class_time").fetchall()
         bookings = db.execute("SELECT bookings.id, customers.name, classes.name, classes.class_date, classes.class_time FROM bookings JOIN customers ON customers.id = bookings.customer_id JOIN classes ON classes.id = bookings.class_id ORDER BY classes.class_date, classes.class_time").fetchall()
         db.close()
@@ -191,10 +192,7 @@ class GymManager:
             messagebox.showerror("Błąd", "Podaj imię, nazwisko i poprawny e-mail.")
             return
         try:
-            db = connect_db()
-            db.execute("INSERT INTO customers (name, email, phone) VALUES (?, ?, ?)", (name, email, phone))
-            db.commit()
-            db.close()
+            add_customer(name, email, phone)
             self.customer_name.set("")
             self.customer_email.set("")
             self.customer_phone.set("")
@@ -223,10 +221,7 @@ class GymManager:
             messagebox.showerror("Błąd", "Podaj imię, nazwisko i poprawny e-mail.")
             return
         try:
-            db = connect_db()
-            db.execute("UPDATE customers SET name = ?, email = ?, phone = ? WHERE id = ?", (name, email, phone, row[0]))
-            db.commit()
-            db.close()
+            edit_customer(row[0], name, email, phone)
             self.refresh_all()
         except sqlite3.IntegrityError:
             messagebox.showerror("Błąd", "Ten e-mail jest już używany.")
@@ -238,10 +233,7 @@ class GymManager:
             return
         row = self.customer_table.item(selected[0], "values")
         if messagebox.askyesno("Potwierdzenie", "Usunąć wybranego klienta i jego zapisy?"):
-            db = connect_db()
-            db.execute("DELETE FROM customers WHERE id = ?", (row[0],))
-            db.commit()
-            db.close()
+            delete_customer(row[0])
             self.refresh_all()
 
     def add_membership(self):
@@ -249,14 +241,7 @@ class GymManager:
         start = self.membership_start.get().strip()
         end = self.membership_end.get().strip()
         try:
-            date.fromisoformat(start)
-            date.fromisoformat(end)
-            if not customer or end < start:
-                raise ValueError
-            db = connect_db()
-            db.execute("INSERT INTO memberships (customer_id, plan, start_date, end_date) VALUES (?, ?, ?, ?)", (int(customer), self.membership_plan.get(), start, end))
-            db.commit()
-            db.close()
+            add_membership(int(customer), self.membership_plan.get(), start, end)
             self.refresh_all()
         except (ValueError, sqlite3.IntegrityError):
             messagebox.showerror("Błąd", "Sprawdź klienta i daty karnetu.")
@@ -322,3 +307,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
