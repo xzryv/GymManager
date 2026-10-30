@@ -133,11 +133,11 @@ Szczegółowy backlog, role i przykładowe sprinty opisuje plik `AGILE_SCRUM_KAN
 
 ## Podział pracy
 
-- **Osoba 1:** klienci i karnety;
+- **Osoba 1:** lider projektu i Product Owner; zarządza całością oraz realizuje klientów i karnety;
 - **Osoba 2:** trenerzy, zajęcia i zapisy;
-- **Osoba 3:** interfejs desktopowy, integracja i dokumentacja.
+- **Osoba 3:** Scrum Master, interfejs desktopowy, integracja i dokumentacja.
 
-Każda osoba pracuje na osobnym branchu. Zmiany są zapisywane w commitach i zgłaszane przez Pull Request do gałęzi `main`. Szczegóły podziału znajdują się w `PODZIAL_PRACY.md`.
+Każda osoba pracuje na osobnym branchu. Zmiany są zapisywane w commitach i zgłaszane przez Pull Request do gałęzi `main`. Szczegóły podziału znajdują się w `PODZIAL_PRACY.md`. Gotowe instrukcje do pracy nad częścią 1 są w `CZESC_1_OSOBA_1.md`.
 
 ## Ograniczenia i dalszy rozwój
 
@@ -153,3 +153,4 @@ W kolejnych wersjach można dodać wyszukiwanie, usuwanie lub edycję karnetów 
 - `PODZIAL_PRACY.md` — odpowiedzialność członków zespołu;
 - `AGILE_SCRUM_KANBAN.md` — backlog i opis organizacji pracy;
 - `requirements.txt` — lista dodatkowych bibliotek; projekt korzysta ze standardowej biblioteki Pythona.
+

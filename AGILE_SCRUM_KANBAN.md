@@ -21,14 +21,16 @@ Zespół tworzy program małymi częściami. Po każdej części pokazuje dział
 
 ## Scrum
 
-- **Product Owner:** ustala, które funkcje są najważniejsze. W projekcie tę rolę pełni osoba zbierająca wymagania.
-- **Scrum Master:** pilnuje zasad pracy i pomaga rozwiązywać problemy.
-- **Zespół:** trzy osoby tworzące program i dokumentację.
+- **Product Owner i lider projektu:** Osoba 1 ustala priorytety, utrzymuje backlog i koordynuje cały projekt.
+- **Scrum Master:** Osoba 3 prowadzi krótkie spotkania i pomaga zespołowi usuwać problemy.
+- **Zespół:** Osoba 1 prowadzi projekt i realizuje klientów oraz karnety, Osoba 2 tworzy trenerów, zajęcia i zapisy, Osoba 3 rozwija interfejs, integrację i dokumentację.
 - **Sprint:** tydzień pracy nad wybranym celem.
 - **Planowanie sprintu:** zespół wybiera zadania z backlogu i dzieli je na mniejsze części.
 - **Daily Scrum:** krótkie spotkanie, na którym każdy mówi, co zrobił, co zrobi dalej i czy ma problem.
 - **Sprint Review:** pokaz ukończonych funkcji.
 - **Retrospektywa:** rozmowa o tym, co poprawić w kolejnym sprincie.
+
+Szczegółowy branch, commity i Pull Request dla części 1 opisuje `CZESC_1_OSOBA_1.md`. Osoba 1 sprawdza i koordynuje łączenie PR-ów do main po ich przeglądzie.
 
 ## Przykładowy plan sprintów
 
@@ -57,3 +59,5 @@ Zasady tablicy:
 ## Definition of Done
 
 Zadanie jest gotowe, gdy jego funkcja działa, dane zapisują się w SQLite, zmiany zostały sprawdzone, a Pull Request jest połączony z główną gałęzią.
+
+
