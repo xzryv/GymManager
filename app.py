@@ -133,26 +133,69 @@ class GymManager:
         self.trainer_table = self.make_table(tab, ("id", "name", "specialty"), ("ID", "Imię i nazwisko", "Specjalizacja"))
 
     def make_classes(self):
-        tab = ttk.Frame(self.tabs, padding=10)
+        style = ttk.Style(self.root)
+        style.configure("Schedule.Treeview", font=("Segoe UI", 10), rowheight=34, background="#ffffff", fieldbackground="#ffffff", foreground="#243247")
+        style.configure("Schedule.Treeview.Heading", font=("Segoe UI", 10, "bold"), padding=(8, 10))
+        style.map("Schedule.Treeview", background=[("selected", "#dbeafe")], foreground=[("selected", "#153e75")])
+        style.configure("Schedule.TEntry", padding=6)
+        style.configure("Schedule.TCombobox", padding=6)
+        style.configure("Schedule.TButton", font=("Segoe UI", 10), padding=(12, 7))
+        tab = tk.Frame(self.tabs, background="#f1f5f9", padx=22, pady=18)
         self.tabs.add(tab, text="Zajęcia")
-        form = ttk.Frame(tab)
+        header = tk.Frame(tab, background="#f1f5f9")
+        header.pack(fill="x", pady=(0, 16))
+        tk.Label(header, text="Harmonogram zajęć", font=("Segoe UI", 22, "bold"), foreground="#172b4d", background="#f1f5f9").pack(anchor="w")
+        tk.Label(header, text="Zaplanuj treningi i sprawdź nadchodzące terminy.", font=("Segoe UI", 10), foreground="#64748b", background="#f1f5f9").pack(anchor="w", pady=(3, 0))
+        card = tk.Frame(tab, background="white", padx=18, pady=14, highlightbackground="#dce3ed", highlightthickness=1)
+        card.pack(fill="x")
+        tk.Label(card, text="Nowe zajęcia", font=("Segoe UI", 12, "bold"), foreground="#172b4d", background="white").pack(anchor="w", pady=(0, 10))
+        form = tk.Frame(card, background="white")
         form.pack(fill="x")
         self.class_name = tk.StringVar()
         self.class_trainer = tk.StringVar()
         self.class_date = tk.StringVar()
         self.class_time = tk.StringVar()
         self.class_capacity = tk.StringVar(value="10")
-        fields = [("Nazwa", self.class_name, 24), ("Trener", self.class_trainer, 24), ("Data RRRR-MM-DD", self.class_date, 14), ("Godzina GG:MM", self.class_time, 12), ("Limit miejsc", self.class_capacity, 10)]
-        for column, (label, value, width) in enumerate(fields):
-            ttk.Label(form, text=label).grid(row=0, column=column, sticky="w", padx=3)
+        fields = [("Nazwa zajęć", self.class_name, 0, 0, 3), ("Trener", self.class_trainer, 0, 3, 3), ("Data · RRRR-MM-DD", self.class_date, 2, 0, 2), ("Godzina · GG:MM", self.class_time, 2, 2, 2), ("Limit miejsc", self.class_capacity, 2, 4, 2)]
+        for label, value, row, column, span in fields:
+            tk.Label(form, text=label, font=("Segoe UI", 10), foreground="#475569", background="white").grid(row=row, column=column, columnspan=span, sticky="w", padx=(0, 12), pady=(0, 5))
             if value is self.class_trainer:
-                self.class_trainer_box = ttk.Combobox(form, textvariable=value, state="readonly", width=width)
-                self.class_trainer_box.grid(row=1, column=column, sticky="ew", padx=3)
+                widget = ttk.Combobox(form, textvariable=value, state="readonly", style="Schedule.TCombobox", width=18)
+                self.class_trainer_box = widget
             else:
-                ttk.Entry(form, textvariable=value, width=width).grid(row=1, column=column, sticky="ew", padx=3)
-            form.columnconfigure(column, weight=1)
-        ttk.Button(form, text="Dodaj zajęcia", command=self.add_class).grid(row=2, column=0, sticky="w", padx=3, pady=8)
-        self.class_table = self.make_table(tab, ("id", "name", "trainer", "date", "time", "capacity", "booked"), ("ID", "Zajęcia", "Trener", "Data", "Godzina", "Limit", "Zapisy"))
+                widget = ttk.Entry(form, textvariable=value, style="Schedule.TEntry", width=12)
+            widget.grid(row=row + 1, column=column, columnspan=span, sticky="ew", padx=(0, 12), pady=(0, 10))
+        for column in range(6):
+            form.columnconfigure(column, weight=1, uniform="schedule")
+        actions = tk.Frame(card, background="white")
+        actions.pack(fill="x", pady=(2, 0))
+        tk.Button(actions, text="+  Dodaj zajęcia", command=self.add_class, font=("Segoe UI", 10, "bold"), background="#2563eb", foreground="white", activebackground="#1d4ed8", activeforeground="white", relief="flat", borderwidth=0, padx=18, pady=9, cursor="hand2").pack(side="left")
+        self.class_notice = tk.StringVar()
+        tk.Label(actions, textvariable=self.class_notice, font=("Segoe UI", 10), foreground="#15803d", background="white", wraplength=440, justify="left").pack(side="left", padx=14)
+        list_header = tk.Frame(tab, background="#f1f5f9")
+        list_header.pack(fill="x", pady=(18, 8))
+        tk.Label(list_header, text="Zaplanowane zajęcia", font=("Segoe UI", 12, "bold"), foreground="#172b4d", background="#f1f5f9").pack(side="left")
+        self.class_count = tk.StringVar()
+        tk.Label(list_header, textvariable=self.class_count, font=("Segoe UI", 10), foreground="#64748b", background="#f1f5f9").pack(side="left", padx=12)
+        ttk.Button(list_header, text="Odśwież", command=self.refresh_all, style="Schedule.TButton").pack(side="right")
+        table_frame = tk.Frame(tab, background="white")
+        table_frame.pack(fill="both", expand=True)
+        columns = ("id", "name", "trainer", "date", "time", "capacity", "booked")
+        self.class_table = ttk.Treeview(table_frame, columns=columns, show="headings", height=5, style="Schedule.Treeview")
+        for column, label, width in zip(columns, ("ID", "Zajęcia", "Trener", "Data", "Godzina", "Limit", "Zapisy"), (42, 180, 160, 110, 80, 65, 65)):
+            self.class_table.heading(column, text=label)
+            self.class_table.column(column, width=width, minwidth=width, stretch=column in ("name", "trainer"), anchor="w" if column in ("name", "trainer") else "center")
+        self.class_table.tag_configure("alternate", background="#f1f5f9")
+        self.class_table.grid(row=0, column=0, sticky="nsew")
+        vertical_scroll = ttk.Scrollbar(table_frame, orient="vertical", command=self.class_table.yview)
+        vertical_scroll.grid(row=0, column=1, sticky="ns")
+        horizontal_scroll = ttk.Scrollbar(table_frame, orient="horizontal", command=self.class_table.xview)
+        horizontal_scroll.grid(row=1, column=0, sticky="ew")
+        self.class_table.configure(yscrollcommand=vertical_scroll.set, xscrollcommand=horizontal_scroll.set)
+        table_frame.rowconfigure(0, weight=1)
+        table_frame.columnconfigure(0, weight=1)
+        self.class_empty = tk.Label(table_frame, text="Brak zaplanowanych zajęć.\nDodaj pierwsze zajęcia, korzystając z formularza powyżej.", font=("Segoe UI", 11), foreground="#64748b", background="white", justify="center")
+        tk.Label(tab, text="Terminy uporządkowane według daty i godziny  •  Wszystkie pola formularza są wymagane", font=("Segoe UI", 9), foreground="#64748b", background="#f1f5f9").pack(anchor="w", pady=(8, 0))
 
     def make_bookings(self):
         tab = ttk.Frame(self.tabs, padding=10)
@@ -186,6 +229,13 @@ class GymManager:
         self.fill_table(self.trainer_table, trainers)
         self.fill_table(self.membership_table, memberships)
         self.fill_table(self.class_table, classes)
+        for index, item in enumerate(self.class_table.get_children()):
+            self.class_table.item(item, tags=("alternate",) if index % 2 else ())
+        self.class_count.set(f"Liczba zajęć: {len(classes)}")
+        if classes:
+            self.class_empty.place_forget()
+        else:
+            self.class_empty.place(relx=0.5, rely=0.55, anchor="center")
         self.fill_table(self.booking_table, bookings)
         self.class_trainers = {f"{row[0]} - {row[1]}": row[0] for row in trainers}
         self.class_trainer_box["values"] = list(self.class_trainers)
@@ -270,6 +320,7 @@ class GymManager:
         self.refresh_all()
 
     def add_class(self):
+        self.class_notice.set("")
         db = None
         try:
             name = self.class_name.get().strip()
@@ -315,6 +366,7 @@ class GymManager:
         self.class_time.set("")
         self.class_capacity.set("10")
         self.refresh_all()
+        self.class_notice.set("Zajęcia zostały dodane do harmonogramu.")
 
     def add_booking(self):
         try:
