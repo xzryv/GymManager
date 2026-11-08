@@ -2,7 +2,7 @@ import sqlite3
 import tkinter as tk
 from pathlib import Path
 from tkinter import ttk, messagebox
-from datetime import date
+from datetime import date, time
 from customer_memberships import get_customers, add_customer, edit_customer, delete_customer, get_memberships, add_membership
 
 DB = Path(__file__).with_name("gymmanager.db")
@@ -142,11 +142,16 @@ class GymManager:
         self.class_date = tk.StringVar()
         self.class_time = tk.StringVar()
         self.class_capacity = tk.StringVar(value="10")
-        fields = [("Nazwa", self.class_name, 14), ("ID trenera", self.class_trainer, 9), ("Data RRRR-MM-DD", self.class_date, 14), ("Godzina", self.class_time, 9), ("Limit", self.class_capacity, 7)]
-        for label, value, width in fields:
-            ttk.Label(form, text=label).pack(side="left", padx=2)
-            ttk.Entry(form, textvariable=value, width=width).pack(side="left", padx=2)
-        ttk.Button(form, text="Dodaj zajęcia", command=self.add_class).pack(side="left", padx=3)
+        fields = [("Nazwa", self.class_name, 24), ("Trener", self.class_trainer, 24), ("Data RRRR-MM-DD", self.class_date, 14), ("Godzina GG:MM", self.class_time, 12), ("Limit miejsc", self.class_capacity, 10)]
+        for column, (label, value, width) in enumerate(fields):
+            ttk.Label(form, text=label).grid(row=0, column=column, sticky="w", padx=3)
+            if value is self.class_trainer:
+                self.class_trainer_box = ttk.Combobox(form, textvariable=value, state="readonly", width=width)
+                self.class_trainer_box.grid(row=1, column=column, sticky="ew", padx=3)
+            else:
+                ttk.Entry(form, textvariable=value, width=width).grid(row=1, column=column, sticky="ew", padx=3)
+            form.columnconfigure(column, weight=1)
+        ttk.Button(form, text="Dodaj zajęcia", command=self.add_class).grid(row=2, column=0, sticky="w", padx=3, pady=8)
         self.class_table = self.make_table(tab, ("id", "name", "trainer", "date", "time", "capacity", "booked"), ("ID", "Zajęcia", "Trener", "Data", "Godzina", "Limit", "Zapisy"))
 
     def make_bookings(self):
@@ -182,6 +187,10 @@ class GymManager:
         self.fill_table(self.membership_table, memberships)
         self.fill_table(self.class_table, classes)
         self.fill_table(self.booking_table, bookings)
+        self.class_trainers = {f"{row[0]} - {row[1]}": row[0] for row in trainers}
+        self.class_trainer_box["values"] = list(self.class_trainers)
+        if self.class_trainer.get() not in self.class_trainers:
+            self.class_trainer.set("")
         self.customer_box["values"] = [f"{row[0]} - {row[1]}" for row in customers]
 
     def add_customer(self):
@@ -261,23 +270,51 @@ class GymManager:
         self.refresh_all()
 
     def add_class(self):
+        db = None
         try:
             name = self.class_name.get().strip()
-            trainer = self.class_trainer.get().strip()
             class_date = self.class_date.get().strip()
             class_time = self.class_time.get().strip()
-            capacity = int(self.class_capacity.get())
-            date.fromisoformat(class_date)
-            trainer_id = int(trainer) if trainer else None
-            if not name or capacity < 1:
-                raise ValueError
+            if not name:
+                raise ValueError("Podaj nazwę zajęć.")
+            try:
+                parsed_date = date.fromisoformat(class_date)
+                if parsed_date.isoformat() != class_date:
+                    raise ValueError
+            except ValueError:
+                raise ValueError("Podaj poprawną datę w formacie RRRR-MM-DD.")
+            try:
+                parsed_time = time.fromisoformat(class_time)
+                if parsed_time.strftime("%H:%M") != class_time:
+                    raise ValueError
+            except ValueError:
+                raise ValueError("Podaj poprawną godzinę w formacie GG:MM (00:00–23:59).")
+            try:
+                capacity = int(self.class_capacity.get())
+                if capacity < 1:
+                    raise ValueError
+            except ValueError:
+                raise ValueError("Limit miejsc musi być liczbą całkowitą większą od zera.")
+            trainer_id = self.class_trainers.get(self.class_trainer.get())
             db = connect_db()
+            if trainer_id is None or db.execute("SELECT id FROM trainers WHERE id = ?", (trainer_id,)).fetchone() is None:
+                raise ValueError("Wybierz istniejącego trenera z listy.")
             db.execute("INSERT INTO classes (name, trainer_id, class_date, class_time, capacity) VALUES (?, ?, ?, ?, ?)", (name, trainer_id, class_date, class_time, capacity))
             db.commit()
-            db.close()
-            self.refresh_all()
-        except (ValueError, sqlite3.IntegrityError):
-            messagebox.showerror("Błąd", "Sprawdź nazwę, ID trenera, datę i limit miejsc.")
+        except ValueError as error:
+            messagebox.showerror("Błąd", str(error))
+            return
+        except sqlite3.Error:
+            messagebox.showerror("Błąd", "Nie udało się zapisać zajęć. Sprawdź dostęp do bazy i wybranego trenera.")
+            return
+        finally:
+            if db is not None:
+                db.close()
+        self.class_name.set("")
+        self.class_date.set("")
+        self.class_time.set("")
+        self.class_capacity.set("10")
+        self.refresh_all()
 
     def add_booking(self):
         try:
