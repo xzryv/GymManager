@@ -76,6 +76,10 @@ def has_users():
 
 
 def create_first_account(login, password):
+    create_account(login, password, first_only=True)
+
+
+def create_account(login, password, first_only=False):
     login = login.strip()
     if not login or not password.strip():
         raise ValueError("Podaj login i hasło.")
@@ -84,10 +88,12 @@ def create_first_account(login, password):
     db = connect_db()
     try:
         db.execute("BEGIN IMMEDIATE")
-        if db.execute("SELECT 1 FROM users LIMIT 1").fetchone():
+        if first_only and db.execute("SELECT 1 FROM users LIMIT 1").fetchone():
             raise ValueError("Pierwsze konto już istnieje. Zaloguj się.")
         db.execute("INSERT INTO users (login, password_salt, password_hash) VALUES (?, ?, ?)", (login, salt, password_hash))
         db.commit()
+    except sqlite3.IntegrityError:
+        raise ValueError("Ten login jest już zajęty. Wybierz inny.") from None
     finally:
         db.close()
 
@@ -520,12 +526,13 @@ class LoginScreen:
         for widget in self.root.winfo_children():
             widget.destroy()
 
-    def show_login(self):
+    def show_login(self, register=None):
         self.clear_window()
         self.first_account = not has_users()
+        self.registering = self.first_account if register is None else register
         self.root.title("GymManager - logowanie")
-        self.root.geometry("920x640")
-        self.root.minsize(860, 640)
+        self.root.geometry("920x700")
+        self.root.minsize(860, 700)
         page = tk.Frame(self.root, background="#f1f5f9")
         page.pack(fill="both", expand=True)
         sidebar = tk.Frame(page, background="#14243b", width=300, padx=32, pady=36)
@@ -542,16 +549,22 @@ class LoginScreen:
         tk.Label(sidebar, text="Więcej czasu\nna dobry trening.", font=("Segoe UI", 21, "bold"), justify="left", background="#14243b", foreground="white").pack(anchor="w")
         tk.Label(sidebar, text="Klienci, karnety i zajęcia\nzawsze pod ręką.", font=("Segoe UI", 11), justify="left", background="#14243b", foreground="#a8b9ce").pack(anchor="w", pady=(14, 0))
         tk.Label(sidebar, text="SYSTEM ZARZĄDZANIA SIŁOWNIĄ", font=("Segoe UI", 8, "bold"), background="#14243b", foreground="#a8b9ce").pack(side="bottom", anchor="w")
-        content = tk.Frame(page, background="#f1f5f9", padx=36, pady=28)
+        content = tk.Frame(page, background="#f1f5f9", padx=36, pady=20)
         content.pack(side="left", fill="both", expand=True)
-        card = tk.Frame(content, background="white", highlightbackground="#dce3ed", highlightthickness=1, padx=30, pady=28)
+        card = tk.Frame(content, background="white", highlightbackground="#dce3ed", highlightthickness=1, padx=30, pady=22)
         card.pack(fill="x", expand=True)
-        badge = "PIERWSZE URUCHOMIENIE" if self.first_account else "PANEL PRACOWNIKA"
+        choices = tk.Frame(card, background="white")
+        choices.pack(fill="x", pady=(0, 20))
+        for column, (text, register) in enumerate((("Zaloguj się", False), ("Zarejestruj się", True))):
+            selected = self.registering == register
+            tk.Button(choices, text=text, command=lambda mode=register: self.show_login(mode), font=("Segoe UI", 10, "bold"), background="#2563eb" if selected else "#eff6ff", foreground="white" if selected else "#2563eb", activebackground="#1d4ed8", activeforeground="white", relief="flat", borderwidth=0, pady=10, cursor="hand2").grid(row=0, column=column, sticky="ew", padx=(0, 4) if column == 0 else (4, 0))
+            choices.columnconfigure(column, weight=1, uniform="login_choices")
+        badge = "REJESTRACJA KONTA" if self.registering else "PANEL PRACOWNIKA"
         tk.Label(card, text=badge, font=("Segoe UI", 9, "bold"), foreground="#2563eb", background="white").pack(anchor="w", pady=(0, 12))
-        title = "Utwórz pierwsze konto" if self.first_account else "Witaj ponownie"
+        title = ("Utwórz pierwsze konto" if self.first_account else "Utwórz konto") if self.registering else "Witaj ponownie"
         tk.Label(card, text=title, font=("Segoe UI", 23, "bold"), foreground="#172b4d", background="white").pack(anchor="w")
-        subtitle = "Ustal dane, których użyjesz do logowania." if self.first_account else "Zaloguj się, aby zarządzać swoją siłownią."
-        tk.Label(card, text=subtitle, font=("Segoe UI", 10), foreground="#64748b", background="white", wraplength=370, justify="left").pack(anchor="w", pady=(6, 24))
+        subtitle = "Ustal dane, których użyjesz do logowania." if self.registering else "Zaloguj się, aby zarządzać swoją siłownią."
+        tk.Label(card, text=subtitle, font=("Segoe UI", 10), foreground="#64748b", background="white", wraplength=370, justify="left").pack(anchor="w", pady=(6, 16))
         self.login = tk.StringVar(master=self.root)
         self.password = tk.StringVar(master=self.root)
         self.notice = tk.StringVar(master=self.root)
@@ -559,14 +572,14 @@ class LoginScreen:
         self.password_entry = self.make_login_field(card, "Hasło", self.password, show="*")
         self.show_password = tk.BooleanVar(master=self.root, value=False)
         tk.Checkbutton(card, text="Pokaż hasło", variable=self.show_password, command=self.toggle_password, font=("Segoe UI", 10), background="white", foreground="#475569", activebackground="white", activeforeground="#172b4d", selectcolor="white", cursor="hand2", padx=0, highlightthickness=0, borderwidth=0).pack(anchor="w", pady=(0, 16))
-        action = "Utwórz konto" if self.first_account else "Zaloguj się"
+        action = "Utwórz konto" if self.registering else "Zaloguj się"
         button = tk.Button(card, text=action, command=self.submit, font=("Segoe UI", 11, "bold"), background="#2563eb", foreground="white", activebackground="#1d4ed8", activeforeground="white", relief="flat", borderwidth=0, pady=12, cursor="hand2", highlightthickness=2, highlightbackground="white", highlightcolor="#93c5fd")
         button.pack(fill="x")
         button.bind("<Enter>", lambda event: button.configure(background="#1d4ed8"))
         button.bind("<Leave>", lambda event: button.configure(background="#2563eb"))
-        self.notice_label = tk.Label(card, textvariable=self.notice, foreground="#b91c1c", background="white", font=("Segoe UI", 10), wraplength=360, justify="left", anchor="w", height=3)
+        self.notice_label = tk.Label(card, textvariable=self.notice, foreground="#b91c1c", background="white", font=("Segoe UI", 10), wraplength=360, justify="left", anchor="w", height=2)
         self.notice_label.pack(fill="x", pady=(10, 0))
-        tk.Label(content, text="Dostęp do programu wymaga zalogowania.", font=("Segoe UI", 9), background="#f1f5f9", foreground="#64748b").pack(pady=(16, 0))
+        tk.Button(content, text="Wejdź jako administrator (bez logowania)", command=self.open_admin, font=("Segoe UI", 10, "bold"), background="#e2e8f0", foreground="#334155", activebackground="#cbd5e1", activeforeground="#172b4d", relief="flat", borderwidth=0, pady=12, cursor="hand2").pack(fill="x", pady=(16, 0))
         login_entry.bind("<Return>", lambda event: self.submit())
         self.password_entry.bind("<Return>", lambda event: self.submit())
         login_entry.focus_set()
@@ -584,6 +597,15 @@ class LoginScreen:
     def toggle_password(self):
         self.password_entry.configure(show="" if self.show_password.get() else "*")
 
+    def open_main(self):
+        self.password.set("")
+        self.clear_window()
+        GymManager(self.root, self.show_login)
+
+    def open_admin(self):
+        self.open_main()
+        self.root.title("GymManager - administrator")
+
     def submit(self):
         self.notice_label.configure(foreground="#b91c1c")
         login = self.login.get().strip()
@@ -592,9 +614,9 @@ class LoginScreen:
             self.notice.set("Podaj login i hasło.")
             return
         try:
-            if self.first_account:
-                create_first_account(login, password)
-                self.show_login()
+            if self.registering:
+                create_account(login, password)
+                self.show_login(False)
                 self.login.set(login)
                 self.notice_label.configure(foreground="#15803d")
                 self.notice.set("Konto utworzone. Zaloguj się.")
@@ -609,9 +631,7 @@ class LoginScreen:
         except sqlite3.Error:
             self.notice.set("Nie udało się odczytać lub zapisać konta. Sprawdź dostęp do bazy.")
             return
-        self.password.set("")
-        self.clear_window()
-        GymManager(self.root, self.show_login)
+        self.open_main()
 
 
 def main():

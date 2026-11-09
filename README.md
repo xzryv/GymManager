@@ -101,8 +101,8 @@ Tkinter i SQLite są częścią standardowej biblioteki Pythona, więc projekt n
    python app.py
    ```
 
-4. Przy pierwszym uruchomieniu utwórz lokalne konto, podając login i hasło.
-5. Zaloguj się, aby otworzyć główne okno GymManager. Przycisk **Wyloguj** wraca do ekranu logowania.
+4. Wybierz **Zarejestruj się**, aby utworzyć lokalne konto, lub **Zaloguj się**, aby użyć istniejącego konta.
+5. Główne okno otworzysz po zalogowaniu lub przyciskiem **Wejdź jako administrator (bez logowania)**, który daje dostęp do wszystkich funkcji bez konta. Przycisk **Wyloguj** wraca do ekranu wyboru logowania i rejestracji.
 
 Przy pierwszym uruchomieniu program tworzy plik `gymmanager.db`. W tym pliku są przechowywane dane klientów, karnetów, trenerów, zajęć i zapisów. Nie usuwaj go, jeśli chcesz zachować dane. Warto od czasu do czasu zrobić kopię tego pliku.
 
@@ -142,7 +142,7 @@ Każda osoba pracuje na osobnym branchu. Zmiany są zapisywane w commitach i zg�
 
 ## Ograniczenia i dalszy rozwój
 
-Obecna wersja jest prostym programem do lokalnego użytku. Obsługuje lokalne logowanie i tworzenie pierwszego konta. Hasło jest przechowywane jako skrót PBKDF2-SHA256 z losową solą. Nie ma synchronizacji między komputerami, płatności ani automatycznych przypomnień. Nie obsługuje też równoczesnej pracy wielu stanowisk na jednej wspólnej bazie.
+Obecna wersja jest prostym programem do lokalnego użytku. Obsługuje lokalne logowanie, rejestrację kont oraz wejście administratora bez logowania. Hasło jest przechowywane jako skrót PBKDF2-SHA256 z losową solą. Nie ma synchronizacji między komputerami, płatności ani automatycznych przypomnień. Nie obsługuje też równoczesnej pracy wielu stanowisk na jednej wspólnej bazie.
 
 W kolejnych wersjach można dodać wyszukiwanie, usuwanie lub edycję karnetów i trenerów, wygodniejsze wybieranie trenera i zajęć z listy, raporty oraz kopię zapasową wykonywaną z poziomu programu.
 
