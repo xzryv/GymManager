@@ -5,14 +5,14 @@
 1. Zainstaluj Python 3.
 2. Otwórz terminal w folderze projektu.
 3. Uruchom `python app.py`.
-4. Jeśli baza nie zawiera użytkowników, utwórz pierwsze konto, podając login i hasło.
-5. Zaloguj się utworzonym kontem. Główne okno GymManager otworzy się po poprawnym logowaniu.
+4. Wybierz **Zaloguj się** lub **Zarejestruj się**. Jeśli nie masz konta, zarejestruj login i hasło, a następnie się zaloguj.
+5. Możesz też wybrać **Wejdź jako administrator (bez logowania)**, aby otworzyć wszystkie funkcje aplikacji bez podawania danych konta.
 
 Program zapisuje dane w pliku `gymmanager.db` w folderze projektu. Zachowaj ten plik, aby nie stracić danych.
 
 ## Logowanie i wylogowanie
 
-Login i hasło są wymagane. Przy pustych polach lub niepoprawnych danych program wyświetla komunikat i pozostaje na ekranie logowania.
+Przy logowaniu i rejestracji login oraz hasło są wymagane. Przy pustych polach lub niepoprawnych danych program wyświetla komunikat i pozostaje na formularzu. Rejestracja umożliwia dodawanie kolejnych kont; każdy login musi być unikalny.
 
 Przycisk **Wyloguj** zamyka widok główny i wraca do logowania. Konto pozostaje dostępne po ponownym uruchomieniu programu. Hasło jest zapisywane jako skrót PBKDF2-SHA256 z losową solą, a nie jako zwykły tekst.
 

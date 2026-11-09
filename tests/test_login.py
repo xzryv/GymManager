@@ -42,7 +42,7 @@ class LoginTests(unittest.TestCase):
         self.assertEqual(self.root.title(), "GymManager - logowanie")
         self.assertFalse(any(isinstance(widget, app.ttk.Notebook) for widget in self.root.winfo_children()))
 
-    def test_first_launch_requires_account_and_login(self):
+    def test_first_launch_offers_account_setup(self):
         self.assertTrue(self.screen.first_account)
         self.assert_login_visible()
         self.create_account()
@@ -107,6 +107,51 @@ class LoginTests(unittest.TestCase):
         app.create_tables()
         with sqlite3.connect(app.DB) as db:
             self.assertEqual(db.execute("SELECT name, email FROM customers").fetchall(), [("Klient", "klient@example.com")])
+
+    def find_button(self, text):
+        widgets = list(self.root.winfo_children())
+        while widgets:
+            widget = widgets.pop()
+            if isinstance(widget, (tk.Button, app.ttk.Button)) and widget.cget("text") == text:
+                return widget
+            widgets.extend(widget.winfo_children())
+        self.fail(f"Nie znaleziono przycisku: {text}")
+
+    def test_registration_can_add_another_account(self):
+        self.create_account()
+        self.find_button("Zarejestruj się").invoke()
+        self.assertTrue(self.screen.registering)
+        self.submit("drugi", "drugie hasło")
+        self.assertFalse(self.screen.registering)
+        self.assertIn("Konto utworzone", self.screen.notice.get())
+        self.assert_login_visible()
+        self.assertTrue(app.authenticate("pracownik", "Zażółć-123!"))
+        self.assertTrue(app.authenticate("drugi", "drugie hasło"))
+        self.submit("drugi", "drugie hasło")
+        self.assertEqual(self.root.title(), "GymManager - system siłowni")
+
+    def test_duplicate_registration_preserves_existing_password(self):
+        self.create_account()
+        self.find_button("Zarejestruj się").invoke()
+        self.submit("pracownik", "inne hasło")
+        self.assertIn("login jest już zajęty", self.screen.notice.get())
+        self.assertTrue(self.screen.registering)
+        self.assert_login_visible()
+        self.assertTrue(app.authenticate("pracownik", "Zażółć-123!"))
+        self.assertFalse(app.authenticate("pracownik", "inne hasło"))
+
+    def test_admin_access_without_account_and_logout(self):
+        for existing_account in (False, True):
+            if existing_account:
+                self.create_account()
+            self.find_button("Wejdź jako administrator (bez logowania)").invoke()
+            self.assertEqual(self.root.title(), "GymManager - administrator")
+            notebook = next(widget for widget in self.root.winfo_children() if isinstance(widget, app.ttk.Notebook))
+            self.assertEqual(len(notebook.tabs()), 5)
+            self.find_button("Wyloguj").invoke()
+            self.assert_login_visible()
+            self.assertEqual(app.has_users(), existing_account)
+            self.assertEqual(self.screen.password.get(), "")
 
 
 if __name__ == "__main__":
