@@ -1,3 +1,6 @@
+import hashlib
+import hmac
+import secrets
 import sqlite3
 import tkinter as tk
 from pathlib import Path
@@ -17,6 +20,12 @@ def connect_db():
 def create_tables():
     db = connect_db()
     db.executescript("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        login TEXT NOT NULL UNIQUE,
+        password_salt BLOB NOT NULL,
+        password_hash BLOB NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS customers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
@@ -58,11 +67,51 @@ def create_tables():
     db.close()
 
 
+def has_users():
+    db = connect_db()
+    try:
+        return db.execute("SELECT 1 FROM users LIMIT 1").fetchone() is not None
+    finally:
+        db.close()
+
+
+def create_first_account(login, password):
+    login = login.strip()
+    if not login or not password.strip():
+        raise ValueError("Podaj login i hasło.")
+    salt = secrets.token_bytes(16)
+    password_hash = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 600000)
+    db = connect_db()
+    try:
+        db.execute("BEGIN IMMEDIATE")
+        if db.execute("SELECT 1 FROM users LIMIT 1").fetchone():
+            raise ValueError("Pierwsze konto już istnieje. Zaloguj się.")
+        db.execute("INSERT INTO users (login, password_salt, password_hash) VALUES (?, ?, ?)", (login, salt, password_hash))
+        db.commit()
+    finally:
+        db.close()
+
+
+def authenticate(login, password):
+    if not login.strip() or not password.strip():
+        return False
+    db = connect_db()
+    try:
+        user = db.execute("SELECT password_salt, password_hash FROM users WHERE login = ?", (login.strip(),)).fetchone()
+    finally:
+        db.close()
+    if user is None:
+        return False
+    password_hash = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), user[0], 600000)
+    return hmac.compare_digest(password_hash, user[1])
+
+
 class GymManager:
-    def __init__(self, root):
+    def __init__(self, root, on_logout):
         self.root = root
         self.root.title("GymManager - system siłowni")
         self.root.geometry("920x620")
+        ttk.Button(root, text="Wyloguj", command=on_logout).pack(anchor="e", padx=10, pady=(10, 0))
         self.tabs = ttk.Notebook(root)
         self.tabs.pack(fill="both", expand=True, padx=10, pady=10)
         self.make_customers()
@@ -461,10 +510,74 @@ class GymManager:
             messagebox.showerror("Błąd", "Sprawdź ID klienta, ID zajęć i czy klient nie jest już zapisany.")
 
 
+class LoginScreen:
+    def __init__(self, root):
+        self.root = root
+        self.show_login()
+
+    def clear_window(self):
+        for widget in self.root.winfo_children():
+            widget.destroy()
+
+    def show_login(self):
+        self.clear_window()
+        self.first_account = not has_users()
+        self.root.title("GymManager - logowanie")
+        self.root.geometry("440x340")
+        form = ttk.Frame(self.root, padding=24)
+        form.pack(fill="both", expand=True)
+        title = "Utwórz pierwsze konto" if self.first_account else "Zaloguj się"
+        ttk.Label(form, text=title, font=("Segoe UI", 16, "bold")).pack(anchor="w")
+        if self.first_account:
+            ttk.Label(form, text="Ustal login i hasło do lokalnej bazy GymManager.").pack(anchor="w", pady=(4, 8))
+        self.login = tk.StringVar(master=self.root)
+        self.password = tk.StringVar(master=self.root)
+        self.notice = tk.StringVar(master=self.root)
+        ttk.Label(form, text="Login").pack(anchor="w", pady=(8, 2))
+        login_entry = ttk.Entry(form, textvariable=self.login)
+        login_entry.pack(fill="x")
+        ttk.Label(form, text="Hasło").pack(anchor="w", pady=(8, 2))
+        password_entry = ttk.Entry(form, textvariable=self.password, show="*")
+        password_entry.pack(fill="x")
+        action = "Utwórz konto" if self.first_account else "Zaloguj"
+        ttk.Button(form, text=action, command=self.submit).pack(fill="x", pady=(16, 8))
+        ttk.Label(form, textvariable=self.notice, foreground="#b91c1c", wraplength=380).pack(anchor="w")
+        login_entry.bind("<Return>", lambda event: self.submit())
+        password_entry.bind("<Return>", lambda event: self.submit())
+        login_entry.focus_set()
+
+    def submit(self):
+        login = self.login.get().strip()
+        password = self.password.get()
+        if not login or not password.strip():
+            self.notice.set("Podaj login i hasło.")
+            return
+        try:
+            if self.first_account:
+                create_first_account(login, password)
+                self.show_login()
+                self.login.set(login)
+                self.notice.set("Konto utworzone. Zaloguj się.")
+                return
+            if not authenticate(login, password):
+                self.password.set("")
+                self.notice.set("Nieprawidłowy login lub hasło.")
+                return
+        except ValueError as error:
+            self.notice.set(str(error))
+            return
+        except sqlite3.Error:
+            self.notice.set("Nie udało się odczytać lub zapisać konta. Sprawdź dostęp do bazy.")
+            return
+        self.password.set("")
+        self.clear_window()
+        GymManager(self.root, self.show_login)
+
+
 def main():
     create_tables()
     root = tk.Tk()
-    GymManager(root)
+    LoginScreen(root)
     root.mainloop()
 
 
