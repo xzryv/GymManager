@@ -111,6 +111,7 @@ class GymManager:
         self.root = root
         self.root.title("GymManager - system siłowni")
         self.root.geometry("920x620")
+        self.root.minsize(860, 620)
         ttk.Button(root, text="Wyloguj", command=on_logout).pack(anchor="e", padx=10, pady=(10, 0))
         self.tabs = ttk.Notebook(root)
         self.tabs.pack(fill="both", expand=True, padx=10, pady=10)
@@ -523,30 +524,68 @@ class LoginScreen:
         self.clear_window()
         self.first_account = not has_users()
         self.root.title("GymManager - logowanie")
-        self.root.geometry("440x340")
-        form = ttk.Frame(self.root, padding=24)
-        form.pack(fill="both", expand=True)
-        title = "Utwórz pierwsze konto" if self.first_account else "Zaloguj się"
-        ttk.Label(form, text=title, font=("Segoe UI", 16, "bold")).pack(anchor="w")
-        if self.first_account:
-            ttk.Label(form, text="Ustal login i hasło do lokalnej bazy GymManager.").pack(anchor="w", pady=(4, 8))
+        self.root.geometry("920x640")
+        self.root.minsize(860, 640)
+        page = tk.Frame(self.root, background="#f1f5f9")
+        page.pack(fill="both", expand=True)
+        sidebar = tk.Frame(page, background="#14243b", width=300, padx=32, pady=36)
+        sidebar.pack(side="left", fill="y")
+        sidebar.pack_propagate(False)
+        logo = tk.Canvas(sidebar, width=48, height=48, background="#2563eb", highlightthickness=0)
+        logo.pack(anchor="w", pady=(0, 18))
+        logo.create_line(13, 24, 35, 24, fill="white", width=4)
+        for x, top, bottom in ((12, 17, 31), (17, 13, 35), (31, 13, 35), (36, 17, 31)):
+            logo.create_line(x, top, x, bottom, fill="white", width=4)
+        tk.Label(sidebar, text="GymManager", font=("Segoe UI", 24, "bold"), background="#14243b", foreground="white").pack(anchor="w")
+        tk.Label(sidebar, text="Twoja siłownia. Jeden system.", font=("Segoe UI", 10), background="#14243b", foreground="#a8b9ce").pack(anchor="w", pady=(8, 40))
+        tk.Frame(sidebar, background="#365171", height=2, width=40).pack(anchor="w", pady=(0, 24))
+        tk.Label(sidebar, text="Więcej czasu\nna dobry trening.", font=("Segoe UI", 21, "bold"), justify="left", background="#14243b", foreground="white").pack(anchor="w")
+        tk.Label(sidebar, text="Klienci, karnety i zajęcia\nzawsze pod ręką.", font=("Segoe UI", 11), justify="left", background="#14243b", foreground="#a8b9ce").pack(anchor="w", pady=(14, 0))
+        tk.Label(sidebar, text="SYSTEM ZARZĄDZANIA SIŁOWNIĄ", font=("Segoe UI", 8, "bold"), background="#14243b", foreground="#a8b9ce").pack(side="bottom", anchor="w")
+        content = tk.Frame(page, background="#f1f5f9", padx=36, pady=28)
+        content.pack(side="left", fill="both", expand=True)
+        card = tk.Frame(content, background="white", highlightbackground="#dce3ed", highlightthickness=1, padx=30, pady=28)
+        card.pack(fill="x", expand=True)
+        badge = "PIERWSZE URUCHOMIENIE" if self.first_account else "PANEL PRACOWNIKA"
+        tk.Label(card, text=badge, font=("Segoe UI", 9, "bold"), foreground="#2563eb", background="white").pack(anchor="w", pady=(0, 12))
+        title = "Utwórz pierwsze konto" if self.first_account else "Witaj ponownie"
+        tk.Label(card, text=title, font=("Segoe UI", 23, "bold"), foreground="#172b4d", background="white").pack(anchor="w")
+        subtitle = "Ustal dane, których użyjesz do logowania." if self.first_account else "Zaloguj się, aby zarządzać swoją siłownią."
+        tk.Label(card, text=subtitle, font=("Segoe UI", 10), foreground="#64748b", background="white", wraplength=370, justify="left").pack(anchor="w", pady=(6, 24))
         self.login = tk.StringVar(master=self.root)
         self.password = tk.StringVar(master=self.root)
         self.notice = tk.StringVar(master=self.root)
-        ttk.Label(form, text="Login").pack(anchor="w", pady=(8, 2))
-        login_entry = ttk.Entry(form, textvariable=self.login)
-        login_entry.pack(fill="x")
-        ttk.Label(form, text="Hasło").pack(anchor="w", pady=(8, 2))
-        password_entry = ttk.Entry(form, textvariable=self.password, show="*")
-        password_entry.pack(fill="x")
-        action = "Utwórz konto" if self.first_account else "Zaloguj"
-        ttk.Button(form, text=action, command=self.submit).pack(fill="x", pady=(16, 8))
-        ttk.Label(form, textvariable=self.notice, foreground="#b91c1c", wraplength=380).pack(anchor="w")
+        login_entry = self.make_login_field(card, "Login", self.login)
+        self.password_entry = self.make_login_field(card, "Hasło", self.password, show="*")
+        self.show_password = tk.BooleanVar(master=self.root, value=False)
+        tk.Checkbutton(card, text="Pokaż hasło", variable=self.show_password, command=self.toggle_password, font=("Segoe UI", 10), background="white", foreground="#475569", activebackground="white", activeforeground="#172b4d", selectcolor="white", cursor="hand2", padx=0, highlightthickness=0, borderwidth=0).pack(anchor="w", pady=(0, 16))
+        action = "Utwórz konto" if self.first_account else "Zaloguj się"
+        button = tk.Button(card, text=action, command=self.submit, font=("Segoe UI", 11, "bold"), background="#2563eb", foreground="white", activebackground="#1d4ed8", activeforeground="white", relief="flat", borderwidth=0, pady=12, cursor="hand2", highlightthickness=2, highlightbackground="white", highlightcolor="#93c5fd")
+        button.pack(fill="x")
+        button.bind("<Enter>", lambda event: button.configure(background="#1d4ed8"))
+        button.bind("<Leave>", lambda event: button.configure(background="#2563eb"))
+        self.notice_label = tk.Label(card, textvariable=self.notice, foreground="#b91c1c", background="white", font=("Segoe UI", 10), wraplength=360, justify="left", anchor="w", height=3)
+        self.notice_label.pack(fill="x", pady=(10, 0))
+        tk.Label(content, text="Dostęp do programu wymaga zalogowania.", font=("Segoe UI", 9), background="#f1f5f9", foreground="#64748b").pack(pady=(16, 0))
         login_entry.bind("<Return>", lambda event: self.submit())
-        password_entry.bind("<Return>", lambda event: self.submit())
+        self.password_entry.bind("<Return>", lambda event: self.submit())
         login_entry.focus_set()
 
+    def make_login_field(self, parent, label, value, show=""):
+        tk.Label(parent, text=label, font=("Segoe UI", 10, "bold"), background="white", foreground="#334155").pack(anchor="w", pady=(0, 6))
+        frame = tk.Frame(parent, background="white", highlightbackground="#cbd5e1", highlightcolor="#2563eb", highlightthickness=1)
+        frame.pack(fill="x", pady=(0, 16))
+        entry = tk.Entry(frame, textvariable=value, show=show, font=("Segoe UI", 12), background="white", foreground="#172b4d", insertbackground="#172b4d", relief="flat", borderwidth=0, width=20)
+        entry.pack(fill="x", padx=12, pady=10)
+        entry.bind("<FocusIn>", lambda event: frame.configure(highlightbackground="#2563eb"))
+        entry.bind("<FocusOut>", lambda event: frame.configure(highlightbackground="#cbd5e1"))
+        return entry
+
+    def toggle_password(self):
+        self.password_entry.configure(show="" if self.show_password.get() else "*")
+
     def submit(self):
+        self.notice_label.configure(foreground="#b91c1c")
         login = self.login.get().strip()
         password = self.password.get()
         if not login or not password.strip():
@@ -557,6 +596,7 @@ class LoginScreen:
                 create_first_account(login, password)
                 self.show_login()
                 self.login.set(login)
+                self.notice_label.configure(foreground="#15803d")
                 self.notice.set("Konto utworzone. Zaloguj się.")
                 return
             if not authenticate(login, password):
