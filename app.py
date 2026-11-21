@@ -337,37 +337,73 @@ class GymManager:
         tk.Label(tab, text="Terminy uporządkowane według daty i godziny  •  Wszystkie pola formularza są wymagane", font=("Segoe UI", 9), foreground="#64748b", background="#f1f5f9").pack(anchor="w", pady=(8, 0))
 
     def make_bookings(self):
-        tab = tk.Frame(self.tabs, background="#f1f5f9", padx=22, pady=18)
+        style = ttk.Style(self.root)
+        style.configure("Booking.TCombobox", padding=7, font=("Segoe UI", 10))
+        tab = tk.Frame(self.tabs, background="#f1f5f9", padx=22, pady=16)
         self.tabs.add(tab, text="Zapisy")
-        tk.Label(tab, text="Zapisy na zajęcia", font=("Segoe UI", 22, "bold"), foreground="#172b4d", background="#f1f5f9").pack(anchor="w")
-        tk.Label(tab, text="Zarezerwuj miejsce i sprawdź uczestników wybranego treningu.", font=("Segoe UI", 10), foreground="#64748b", background="#f1f5f9").pack(anchor="w", pady=(3, 16))
-        card = tk.Frame(tab, background="white", padx=18, pady=14, highlightbackground="#dce3ed", highlightthickness=1)
+        header = tk.Frame(tab, background="#14243b", padx=18, pady=12)
+        header.pack(fill="x", pady=(0, 12))
+        tk.Label(header, text="REZERWACJE", font=("Segoe UI", 8, "bold"), foreground="#93c5fd", background="#14243b").pack(anchor="w")
+        tk.Label(header, text="Zapisy na zajęcia", font=("Segoe UI", 21, "bold"), foreground="white", background="#14243b").pack(anchor="w")
+        tk.Label(header, text="Wybierz klienta, zarezerwuj trening i sprawdź listę uczestników.", font=("Segoe UI", 10), foreground="#cbd5e1", background="#14243b").pack(anchor="w", pady=(3, 0))
+        stats = tk.Frame(tab, background="#f1f5f9")
+        stats.pack(fill="x", pady=(0, 12))
+        self.booking_available_count = tk.StringVar()
+        self.booking_free_count = tk.StringVar()
+        for column, (title, value, color) in enumerate((("DOSTĘPNE TRENINGI", self.booking_available_count, "#2563eb"), ("WOLNE MIEJSCA", self.booking_free_count, "#15803d"))):
+            tile = tk.Frame(stats, background="white", padx=14, pady=8, highlightbackground="#dce3ed", highlightthickness=1)
+            tile.grid(row=0, column=column, sticky="ew", padx=(0, 8) if column == 0 else (0, 0))
+            tk.Label(tile, text=title, font=("Segoe UI", 8, "bold"), foreground="#64748b", background="white").pack(side="left")
+            tk.Label(tile, textvariable=value, font=("Segoe UI", 18, "bold"), foreground=color, background="white").pack(side="right")
+            stats.columnconfigure(column, weight=1, uniform="booking_stats")
+        card = tk.Frame(tab, background="white", padx=16, pady=12, highlightbackground="#dce3ed", highlightthickness=1)
         card.pack(fill="x")
         self.booking_customer = tk.StringVar()
         self.booking_class = tk.StringVar()
         self.booking_notice = tk.StringVar()
-        for row, (label, value) in enumerate((("Klient", self.booking_customer), ("Dostępne zajęcia · wolne miejsca", self.booking_class))):
-            tk.Label(card, text=label, font=("Segoe UI", 10), foreground="#475569", background="white").grid(row=row * 2, column=0, sticky="w", pady=(0, 5))
-            box = ttk.Combobox(card, textvariable=value, state="readonly", style="Schedule.TCombobox", width=30)
-            box.grid(row=row * 2 + 1, column=0, sticky="ew", pady=(0, 10))
+        for row, (label, value) in enumerate((("1  Wybierz klienta", self.booking_customer), ("2  Wybierz dostępny trening", self.booking_class))):
+            tk.Label(card, text=label, font=("Segoe UI", 10, "bold"), foreground="#334155", background="white").grid(row=0, column=row, sticky="w", pady=(0, 4))
+            box = ttk.Combobox(card, textvariable=value, state="readonly", style="Booking.TCombobox", width=30)
+            box.grid(row=1, column=row, sticky="ew", padx=(0, 10), pady=(0, 8))
             if row == 0:
                 self.booking_customer_box = box
             else:
                 self.booking_class_box = box
-        card.columnconfigure(0, weight=1)
-        tk.Button(card, text="+  Zapisz klienta", command=self.add_booking, font=("Segoe UI", 10, "bold"), background="#2563eb", foreground="white", activebackground="#1d4ed8", activeforeground="white", relief="flat", borderwidth=0, padx=18, pady=9, cursor="hand2").grid(row=4, column=0, sticky="w")
-        tk.Label(card, textvariable=self.booking_notice, font=("Segoe UI", 10), foreground="#15803d", background="white", anchor="w").grid(row=5, column=0, sticky="ew", pady=(8, 0))
+        card.columnconfigure(0, weight=2)
+        card.columnconfigure(1, weight=3)
+        actions = tk.Frame(card, background="white")
+        actions.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(2, 0))
+        button = tk.Button(actions, text="+  Zarezerwuj miejsce", command=self.add_booking, font=("Segoe UI", 10, "bold"), background="#2563eb", foreground="white", activebackground="#1d4ed8", activeforeground="white", relief="flat", borderwidth=0, padx=16, pady=8, cursor="hand2")
+        button.pack(side="left")
+        button.bind("<Enter>", lambda event: button.configure(background="#1d4ed8"))
+        button.bind("<Leave>", lambda event: button.configure(background="#2563eb"))
+        tk.Label(actions, textvariable=self.booking_notice, font=("Segoe UI", 9), foreground="#15803d", background="white", wraplength=430, justify="left").pack(side="left", padx=12)
         filters = tk.Frame(tab, background="#f1f5f9")
-        filters.pack(fill="x", pady=(16, 8))
+        filters.pack(fill="x", pady=(12, 8))
         tk.Label(filters, text="Uczestnicy", font=("Segoe UI", 12, "bold"), foreground="#172b4d", background="#f1f5f9").pack(side="left", padx=(0, 12))
         self.participant_class = tk.StringVar(value="Wszystkie zajęcia")
-        self.participant_class_box = ttk.Combobox(filters, textvariable=self.participant_class, state="readonly", style="Schedule.TCombobox", width=30)
+        self.participant_class_box = ttk.Combobox(filters, textvariable=self.participant_class, state="readonly", style="Booking.TCombobox", width=24)
         self.participant_class_box.pack(side="left", fill="x", expand=True)
         self.participant_class_box.bind("<<ComboboxSelected>>", self.refresh_participants)
         ttk.Button(filters, text="Odśwież", command=self.refresh_all, style="Schedule.TButton").pack(side="right", padx=(12, 0))
-        self.booking_table = self.make_styled_table(tab, ("id", "customer", "class", "date", "time"), ("ID zapisu", "Klient", "Zajęcia", "Data", "Godzina"), (70, 200, 190, 110, 85))
+        table_frame = tk.Frame(tab, background="white", highlightbackground="#dce3ed", highlightthickness=1)
+        table_frame.pack(fill="both", expand=True)
+        columns = ("id", "customer", "class", "date", "time")
+        self.booking_table = ttk.Treeview(table_frame, columns=columns, show="headings", height=3, style="Schedule.Treeview")
+        for column, label, width in zip(columns, ("ID zapisu", "Klient", "Zajęcia", "Data", "Godzina"), (70, 200, 190, 110, 85)):
+            self.booking_table.heading(column, text=label)
+            self.booking_table.column(column, width=width, minwidth=width, anchor="w" if column in ("customer", "class") else "center", stretch=column in ("customer", "class"))
+        self.booking_table.tag_configure("alternate", background="#f1f5f9")
+        self.booking_table.grid(row=0, column=0, sticky="nsew")
+        vertical = ttk.Scrollbar(table_frame, orient="vertical", command=self.booking_table.yview)
+        vertical.grid(row=0, column=1, sticky="ns")
+        horizontal = ttk.Scrollbar(table_frame, orient="horizontal", command=self.booking_table.xview)
+        horizontal.grid(row=1, column=0, sticky="ew")
+        self.booking_table.configure(yscrollcommand=vertical.set, xscrollcommand=horizontal.set)
+        table_frame.rowconfigure(0, weight=1)
+        table_frame.columnconfigure(0, weight=1)
         self.participant_count = tk.StringVar()
-        tk.Label(tab, textvariable=self.participant_count, font=("Segoe UI", 9), foreground="#64748b", background="#f1f5f9").pack(anchor="w", pady=(8, 0))
+        tk.Label(tab, textvariable=self.participant_count, font=("Segoe UI", 9), foreground="#64748b", background="#f1f5f9").pack(anchor="w", pady=(6, 0))
 
     def refresh_booking_choices(self, customers, classes):
         selected_class = getattr(self, "booking_classes", {}).get(self.booking_class.get())
@@ -377,6 +413,9 @@ class GymManager:
             self.booking_customer.set("")
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
         self.booking_classes = {f"{row[0]} - {row[1]} | {row[3]} {row[4]} | wolne: {row[5] - row[6]}/{row[5]}": row[0] for row in classes if row[6] < row[5] and f"{row[3]} {row[4]}" > now}
+        available = [row for row in classes if row[6] < row[5] and f"{row[3]} {row[4]}" > now]
+        self.booking_available_count.set(str(len(available)))
+        self.booking_free_count.set(str(sum(row[5] - row[6] for row in available)))
         self.booking_class_box["values"] = list(self.booking_classes)
         self.booking_class.set(next((label for label, class_id in self.booking_classes.items() if class_id == selected_class), ""))
         self.participant_classes = {f"{row[0]} - {row[1]} | {row[3]} {row[4]}": row[0] for row in classes}
@@ -385,6 +424,8 @@ class GymManager:
             self.participant_class.set("Wszystkie zajęcia")
         if not self.booking_classes:
             self.booking_notice.set("Brak nadchodzących zajęć z wolnymi miejscami.")
+        elif self.booking_notice.get() == "Brak nadchodzących zajęć z wolnymi miejscami.":
+            self.booking_notice.set("")
 
     def refresh_participants(self, event=None):
         class_id = self.participant_classes.get(self.participant_class.get())
