@@ -258,18 +258,65 @@ class GymManager:
         tk.Label(tab, text="Status jest ustalany automatycznie na podstawie dat karnetu.", font=("Segoe UI", 9), foreground="#64748b", background="#f1f5f9").pack(anchor="w", pady=(8, 0))
 
     def make_trainers(self):
-        tab = ttk.Frame(self.tabs, padding=10)
+        tab = tk.Frame(self.tabs, background="#f1f5f9", padx=22, pady=12)
         self.tabs.add(tab, text="Trenerzy")
-        form = ttk.Frame(tab)
-        form.pack(fill="x")
+        tk.Label(tab, text="Zarządzanie trenerami", font=("Segoe UI", 22, "bold"), foreground="#172b4d", background="#f1f5f9").pack(anchor="w")
+        tk.Label(tab, text="Dodaj trenera, edytuj jego dane i przypisz go do zajęć.", font=("Segoe UI", 10), foreground="#64748b", background="#f1f5f9").pack(anchor="w", pady=(3, 8))
+        card = tk.Frame(tab, background="white", padx=16, pady=8, highlightbackground="#dce3ed", highlightthickness=1)
+        card.pack(fill="x")
+        self.selected_trainer_id = None
         self.trainer_name = tk.StringVar()
         self.trainer_specialty = tk.StringVar()
-        ttk.Label(form, text="Imię i nazwisko").pack(side="left", padx=3)
-        ttk.Entry(form, textvariable=self.trainer_name, width=25).pack(side="left", padx=3)
-        ttk.Label(form, text="Specjalizacja").pack(side="left", padx=3)
-        ttk.Entry(form, textvariable=self.trainer_specialty, width=25).pack(side="left", padx=3)
-        ttk.Button(form, text="Dodaj trenera", command=self.add_trainer).pack(side="left", padx=3)
-        self.trainer_table = self.make_table(tab, ("id", "name", "specialty"), ("ID", "Imię i nazwisko", "Specjalizacja"))
+        self.trainer_notice = tk.StringVar()
+        self.trainer_mode = tk.StringVar(value="Nowy trener")
+        tk.Label(card, textvariable=self.trainer_mode, font=("Segoe UI", 12, "bold"), foreground="#172b4d", background="white").pack(anchor="w", pady=(0, 5))
+        form = tk.Frame(card, background="white")
+        form.pack(fill="x")
+        for column, (label, value) in enumerate((("Imię i nazwisko *", self.trainer_name), ("Specjalizacja (opcjonalnie)", self.trainer_specialty))):
+            tk.Label(form, text=label, font=("Segoe UI", 10), foreground="#475569", background="white").grid(row=0, column=column, sticky="w", pady=(0, 4))
+            ttk.Entry(form, textvariable=value, style="Schedule.TEntry", width=20).grid(row=1, column=column, sticky="ew", padx=(0, 10), pady=(0, 5))
+            form.columnconfigure(column, weight=1, uniform="trainer")
+        actions = tk.Frame(card, background="white")
+        actions.pack(fill="x")
+        tk.Button(actions, text="+  Dodaj trenera", command=self.add_trainer, font=("Segoe UI", 10, "bold"), background="#2563eb", foreground="white", activebackground="#1d4ed8", activeforeground="white", relief="flat", borderwidth=0, padx=15, pady=8, cursor="hand2").pack(side="left", padx=(0, 8))
+        ttk.Button(actions, text="Zapisz edycję", command=self.edit_trainer, style="Schedule.TButton").pack(side="left", padx=(0, 8))
+        ttk.Button(actions, text="Wyczyść formularz", command=self.clear_trainer_form, style="Schedule.TButton").pack(side="left")
+        assignment = tk.Frame(tab, background="white", padx=16, pady=8, highlightbackground="#dce3ed", highlightthickness=1)
+        assignment.pack(fill="x", pady=(8, 0))
+        tk.Label(assignment, text="Przypisz wybranego trenera do zajęć", font=("Segoe UI", 10, "bold"), foreground="#334155", background="white").pack(anchor="w", pady=(0, 6))
+        self.trainer_class = tk.StringVar()
+        self.trainer_class_box = ttk.Combobox(assignment, textvariable=self.trainer_class, state="readonly", style="Schedule.TCombobox", width=25)
+        self.trainer_class_box.pack(side="left", fill="x", expand=True)
+        ttk.Button(assignment, text="Przypisz trenera", command=self.assign_trainer, style="Schedule.TButton").pack(side="right", padx=(10, 0))
+        tk.Label(tab, textvariable=self.trainer_notice, font=("Segoe UI", 10), foreground="#15803d", background="#f1f5f9", anchor="w").pack(fill="x", pady=(6, 0))
+        header = tk.Frame(tab, background="#f1f5f9")
+        header.pack(fill="x", pady=(6, 8))
+        self.trainer_count = tk.StringVar()
+        tk.Label(header, textvariable=self.trainer_count, font=("Segoe UI", 12, "bold"), foreground="#172b4d", background="#f1f5f9").pack(side="left")
+        ttk.Button(header, text="Odśwież", command=self.refresh_all, style="Schedule.TButton").pack(side="right")
+        self.trainer_table = self.make_styled_table(tab, ("id", "name", "specialty"), ("ID", "Imię i nazwisko", "Specjalizacja"), (55, 300, 300))
+        self.trainer_table.configure(height=3, selectmode="browse")
+        self.trainer_table.bind("<<TreeviewSelect>>", self.select_trainer)
+        tk.Label(tab, text="Wybierz trenera w tabeli, aby edytować jego dane lub przypisać go do zajęć.", font=("Segoe UI", 9), foreground="#64748b", background="#f1f5f9").pack(anchor="w", pady=(6, 0))
+
+    def clear_trainer_form(self):
+        self.selected_trainer_id = None
+        self.trainer_name.set("")
+        self.trainer_specialty.set("")
+        self.trainer_mode.set("Nowy trener")
+        self.trainer_notice.set("")
+        self.trainer_table.selection_remove(self.trainer_table.selection())
+
+    def select_trainer(self, event=None):
+        selected = self.trainer_table.selection()
+        if not selected:
+            return
+        row = self.trainer_table.item(selected[0], "values")
+        self.selected_trainer_id = int(row[0])
+        self.trainer_name.set(row[1])
+        self.trainer_specialty.set(row[2] or "")
+        self.trainer_mode.set(f"Edycja trenera #{row[0]}")
+        self.trainer_notice.set("")
 
     def make_classes(self):
         style = ttk.Style(self.root)
@@ -416,6 +463,15 @@ class GymManager:
             self.customer_table.item(item, tags=("alternate",) if index % 2 else ())
         self.customer_count.set(f"Liczba klientów: {len(customers)}")
         self.fill_table(self.trainer_table, trainers)
+        for index, item in enumerate(self.trainer_table.get_children()):
+            self.trainer_table.item(item, tags=("alternate",) if index % 2 else ())
+        self.trainer_count.set(f"Lista trenerów · {len(trainers)}")
+        if self.selected_trainer_id is not None and not any(row[0] == self.selected_trainer_id for row in trainers):
+            self.clear_trainer_form()
+        selected_class = getattr(self, "trainer_classes", {}).get(self.trainer_class.get())
+        self.trainer_classes = {f"{row[0]} - {row[1]} | {row[3]} {row[4]} | {row[2] or 'Bez trenera'}": row[0] for row in classes}
+        self.trainer_class_box["values"] = list(self.trainer_classes)
+        self.trainer_class.set(next((label for label, value in self.trainer_classes.items() if value == selected_class), ""))
         self.fill_table(self.membership_table, memberships)
         for item in self.membership_table.get_children():
             values = self.membership_table.item(item, "values")
@@ -506,18 +562,75 @@ class GymManager:
             messagebox.showerror("Błąd", "Sprawdź klienta i daty karnetu.")
 
     def add_trainer(self):
+        self.save_trainer()
+
+    def edit_trainer(self):
+        if self.selected_trainer_id is None:
+            messagebox.showerror("Błąd", "Wybierz trenera z tabeli, aby edytować jego dane.")
+            return
+        self.save_trainer(self.selected_trainer_id)
+
+    def save_trainer(self, trainer_id=None):
+        self.trainer_notice.set("")
         name = self.trainer_name.get().strip()
         specialty = self.trainer_specialty.get().strip()
         if not name:
             messagebox.showerror("Błąd", "Podaj imię i nazwisko trenera.")
             return
-        db = connect_db()
-        db.execute("INSERT INTO trainers (name, specialty) VALUES (?, ?)", (name, specialty))
-        db.commit()
-        db.close()
-        self.trainer_name.set("")
-        self.trainer_specialty.set("")
+        db = None
+        try:
+            db = connect_db()
+            if trainer_id is None:
+                db.execute("INSERT INTO trainers (name, specialty) VALUES (?, ?)", (name, specialty))
+            else:
+                result = db.execute("UPDATE trainers SET name = ?, specialty = ? WHERE id = ?", (name, specialty, trainer_id))
+                if result.rowcount == 0:
+                    raise ValueError("Wybrany trener już nie istnieje. Odśwież listę.")
+            db.commit()
+        except ValueError as error:
+            messagebox.showerror("Błąd", str(error))
+            return
+        except sqlite3.Error:
+            messagebox.showerror("Błąd", "Nie udało się zapisać danych trenera. Sprawdź dostęp do bazy.")
+            return
+        finally:
+            if db is not None:
+                db.close()
+        self.clear_trainer_form()
         self.refresh_all()
+        self.trainer_notice.set("Trener został dodany." if trainer_id is None else "Dane trenera zostały zapisane.")
+
+    def assign_trainer(self):
+        self.trainer_notice.set("")
+        trainer_id = self.selected_trainer_id
+        class_id = self.trainer_classes.get(self.trainer_class.get())
+        if trainer_id is None:
+            messagebox.showerror("Błąd", "Wybierz trenera z tabeli.")
+            return
+        if class_id is None:
+            messagebox.showerror("Błąd", "Wybierz zajęcia z listy.")
+            return
+        db = None
+        try:
+            db = connect_db()
+            db.execute("BEGIN IMMEDIATE")
+            if db.execute("SELECT id FROM trainers WHERE id = ?", (trainer_id,)).fetchone() is None:
+                raise ValueError("Wybrany trener już nie istnieje. Odśwież listę.")
+            result = db.execute("UPDATE classes SET trainer_id = ? WHERE id = ?", (trainer_id, class_id))
+            if result.rowcount == 0:
+                raise ValueError("Wybrane zajęcia już nie istnieją. Odśwież listę.")
+            db.commit()
+        except ValueError as error:
+            messagebox.showerror("Błąd", str(error))
+            return
+        except sqlite3.Error:
+            messagebox.showerror("Błąd", "Nie udało się przypisać trenera. Sprawdź dostęp do bazy.")
+            return
+        finally:
+            if db is not None:
+                db.close()
+        self.refresh_all()
+        self.trainer_notice.set("Trener został przypisany do zajęć.")
 
     def add_class(self):
         self.class_notice.set("")
