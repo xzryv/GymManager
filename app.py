@@ -5,7 +5,7 @@ import sqlite3
 import tkinter as tk
 from pathlib import Path
 from tkinter import ttk, messagebox
-from datetime import date, time
+from datetime import date, time, datetime
 from customer_memberships import get_customers, add_customer, edit_customer, delete_customer, get_memberships, add_membership
 
 DB = Path(__file__).with_name("gymmanager.db")
@@ -65,6 +65,28 @@ def create_tables():
     """)
     db.commit()
     db.close()
+
+
+def reserve_class(customer_id, class_id):
+    db = connect_db()
+    try:
+        db.execute("BEGIN IMMEDIATE")
+        if db.execute("SELECT id FROM customers WHERE id = ?", (customer_id,)).fetchone() is None:
+            raise ValueError("Wybrany klient nie istnieje. Odśwież listę klientów.")
+        row = db.execute("SELECT class_date, class_time, capacity FROM classes WHERE id = ?", (class_id,)).fetchone()
+        if row is None:
+            raise ValueError("Wybrane zajęcia nie istnieją. Odśwież harmonogram.")
+        if f"{row[0]} {row[1]}" <= datetime.now().strftime("%Y-%m-%d %H:%M"):
+            raise ValueError("Nie można zapisać klienta na zajęcia, które już się rozpoczęły.")
+        if db.execute("SELECT id FROM bookings WHERE customer_id = ? AND class_id = ?", (customer_id, class_id)).fetchone():
+            raise ValueError("Ten klient jest już zapisany na wybrane zajęcia.")
+        count = db.execute("SELECT COUNT(*) FROM bookings WHERE class_id = ?", (class_id,)).fetchone()[0]
+        if count >= row[2]:
+            raise ValueError("Brak wolnych miejsc na wybrane zajęcia.")
+        db.execute("INSERT INTO bookings (customer_id, class_id) VALUES (?, ?)", (customer_id, class_id))
+        db.commit()
+    finally:
+        db.close()
 
 
 def has_users():
@@ -315,18 +337,66 @@ class GymManager:
         tk.Label(tab, text="Terminy uporządkowane według daty i godziny  •  Wszystkie pola formularza są wymagane", font=("Segoe UI", 9), foreground="#64748b", background="#f1f5f9").pack(anchor="w", pady=(8, 0))
 
     def make_bookings(self):
-        tab = ttk.Frame(self.tabs, padding=10)
+        tab = tk.Frame(self.tabs, background="#f1f5f9", padx=22, pady=18)
         self.tabs.add(tab, text="Zapisy")
-        form = ttk.Frame(tab)
-        form.pack(fill="x")
+        tk.Label(tab, text="Zapisy na zajęcia", font=("Segoe UI", 22, "bold"), foreground="#172b4d", background="#f1f5f9").pack(anchor="w")
+        tk.Label(tab, text="Zarezerwuj miejsce i sprawdź uczestników wybranego treningu.", font=("Segoe UI", 10), foreground="#64748b", background="#f1f5f9").pack(anchor="w", pady=(3, 16))
+        card = tk.Frame(tab, background="white", padx=18, pady=14, highlightbackground="#dce3ed", highlightthickness=1)
+        card.pack(fill="x")
         self.booking_customer = tk.StringVar()
         self.booking_class = tk.StringVar()
-        ttk.Label(form, text="ID klienta").pack(side="left", padx=3)
-        ttk.Entry(form, textvariable=self.booking_customer, width=12).pack(side="left", padx=3)
-        ttk.Label(form, text="ID zajęć").pack(side="left", padx=3)
-        ttk.Entry(form, textvariable=self.booking_class, width=12).pack(side="left", padx=3)
-        ttk.Button(form, text="Zapisz klienta", command=self.add_booking).pack(side="left", padx=3)
-        self.booking_table = self.make_table(tab, ("id", "customer", "class", "date", "time"), ("ID", "Klient", "Zajęcia", "Data", "Godzina"))
+        self.booking_notice = tk.StringVar()
+        for row, (label, value) in enumerate((("Klient", self.booking_customer), ("Dostępne zajęcia · wolne miejsca", self.booking_class))):
+            tk.Label(card, text=label, font=("Segoe UI", 10), foreground="#475569", background="white").grid(row=row * 2, column=0, sticky="w", pady=(0, 5))
+            box = ttk.Combobox(card, textvariable=value, state="readonly", style="Schedule.TCombobox", width=30)
+            box.grid(row=row * 2 + 1, column=0, sticky="ew", pady=(0, 10))
+            if row == 0:
+                self.booking_customer_box = box
+            else:
+                self.booking_class_box = box
+        card.columnconfigure(0, weight=1)
+        tk.Button(card, text="+  Zapisz klienta", command=self.add_booking, font=("Segoe UI", 10, "bold"), background="#2563eb", foreground="white", activebackground="#1d4ed8", activeforeground="white", relief="flat", borderwidth=0, padx=18, pady=9, cursor="hand2").grid(row=4, column=0, sticky="w")
+        tk.Label(card, textvariable=self.booking_notice, font=("Segoe UI", 10), foreground="#15803d", background="white", anchor="w").grid(row=5, column=0, sticky="ew", pady=(8, 0))
+        filters = tk.Frame(tab, background="#f1f5f9")
+        filters.pack(fill="x", pady=(16, 8))
+        tk.Label(filters, text="Uczestnicy", font=("Segoe UI", 12, "bold"), foreground="#172b4d", background="#f1f5f9").pack(side="left", padx=(0, 12))
+        self.participant_class = tk.StringVar(value="Wszystkie zajęcia")
+        self.participant_class_box = ttk.Combobox(filters, textvariable=self.participant_class, state="readonly", style="Schedule.TCombobox", width=30)
+        self.participant_class_box.pack(side="left", fill="x", expand=True)
+        self.participant_class_box.bind("<<ComboboxSelected>>", self.refresh_participants)
+        ttk.Button(filters, text="Odśwież", command=self.refresh_all, style="Schedule.TButton").pack(side="right", padx=(12, 0))
+        self.booking_table = self.make_styled_table(tab, ("id", "customer", "class", "date", "time"), ("ID zapisu", "Klient", "Zajęcia", "Data", "Godzina"), (70, 200, 190, 110, 85))
+        self.participant_count = tk.StringVar()
+        tk.Label(tab, textvariable=self.participant_count, font=("Segoe UI", 9), foreground="#64748b", background="#f1f5f9").pack(anchor="w", pady=(8, 0))
+
+    def refresh_booking_choices(self, customers, classes):
+        selected_class = getattr(self, "booking_classes", {}).get(self.booking_class.get())
+        self.booking_customers = {f"{row[0]} - {row[1]} ({row[2]})": row[0] for row in customers}
+        self.booking_customer_box["values"] = list(self.booking_customers)
+        if self.booking_customer.get() not in self.booking_customers:
+            self.booking_customer.set("")
+        now = datetime.now().strftime("%Y-%m-%d %H:%M")
+        self.booking_classes = {f"{row[0]} - {row[1]} | {row[3]} {row[4]} | wolne: {row[5] - row[6]}/{row[5]}": row[0] for row in classes if row[6] < row[5] and f"{row[3]} {row[4]}" > now}
+        self.booking_class_box["values"] = list(self.booking_classes)
+        self.booking_class.set(next((label for label, class_id in self.booking_classes.items() if class_id == selected_class), ""))
+        self.participant_classes = {f"{row[0]} - {row[1]} | {row[3]} {row[4]}": row[0] for row in classes}
+        self.participant_class_box["values"] = ["Wszystkie zajęcia", *self.participant_classes]
+        if self.participant_class.get() not in self.participant_classes:
+            self.participant_class.set("Wszystkie zajęcia")
+        if not self.booking_classes:
+            self.booking_notice.set("Brak nadchodzących zajęć z wolnymi miejscami.")
+
+    def refresh_participants(self, event=None):
+        class_id = self.participant_classes.get(self.participant_class.get())
+        db = connect_db()
+        try:
+            rows = db.execute("SELECT bookings.id, customers.name, classes.name, classes.class_date, classes.class_time FROM bookings JOIN customers ON customers.id = bookings.customer_id JOIN classes ON classes.id = bookings.class_id WHERE (? IS NULL OR classes.id = ?) ORDER BY classes.class_date, classes.class_time, customers.name, bookings.id", (class_id, class_id)).fetchall()
+        finally:
+            db.close()
+        self.fill_table(self.booking_table, rows)
+        for index, item in enumerate(self.booking_table.get_children()):
+            self.booking_table.item(item, tags=("alternate",) if index % 2 else ())
+        self.participant_count.set(f"Liczba zapisów: {len(rows)}" if rows else "Brak zapisanych uczestników.")
 
     def fill_table(self, table, rows):
         for item in table.get_children():
@@ -340,7 +410,6 @@ class GymManager:
         trainers = db.execute("SELECT id, name, specialty FROM trainers ORDER BY name").fetchall()
         memberships = get_memberships()
         classes = db.execute("SELECT classes.id, classes.name, COALESCE(trainers.name, ''), classes.class_date, classes.class_time, classes.capacity, COUNT(bookings.id) FROM classes LEFT JOIN trainers ON trainers.id = classes.trainer_id LEFT JOIN bookings ON bookings.class_id = classes.id GROUP BY classes.id ORDER BY classes.class_date, classes.class_time").fetchall()
-        bookings = db.execute("SELECT bookings.id, customers.name, classes.name, classes.class_date, classes.class_time FROM bookings JOIN customers ON customers.id = bookings.customer_id JOIN classes ON classes.id = bookings.class_id ORDER BY classes.class_date, classes.class_time").fetchall()
         db.close()
         self.fill_table(self.customer_table, customers)
         for index, item in enumerate(self.customer_table.get_children()):
@@ -360,7 +429,8 @@ class GymManager:
             self.class_empty.place_forget()
         else:
             self.class_empty.place(relx=0.5, rely=0.55, anchor="center")
-        self.fill_table(self.booking_table, bookings)
+        self.refresh_booking_choices(customers, classes)
+        self.refresh_participants()
         self.class_trainers = {f"{row[0]} - {row[1]}": row[0] for row in trainers}
         self.class_trainer_box["values"] = list(self.class_trainers)
         if self.class_trainer.get() not in self.class_trainers:
@@ -499,22 +569,27 @@ class GymManager:
         self.class_notice.set("Zajęcia zostały dodane do harmonogramu.")
 
     def add_booking(self):
+        self.booking_notice.set("")
+        customer_id = self.booking_customers.get(self.booking_customer.get())
+        class_id = self.booking_classes.get(self.booking_class.get())
+        if customer_id is None:
+            messagebox.showerror("Błąd", "Wybierz klienta z listy.")
+            return
+        if class_id is None:
+            messagebox.showerror("Błąd", "Wybierz dostępne zajęcia z listy.")
+            return
         try:
-            customer_id = int(self.booking_customer.get())
-            class_id = int(self.booking_class.get())
-            db = connect_db()
-            class_row = db.execute("SELECT capacity FROM classes WHERE id = ?", (class_id,)).fetchone()
-            count = db.execute("SELECT COUNT(*) FROM bookings WHERE class_id = ?", (class_id,)).fetchone()[0]
-            if class_row is None or count >= class_row[0]:
-                db.close()
-                messagebox.showerror("Błąd", "Nie ma zajęć lub brakuje miejsc.")
-                return
-            db.execute("INSERT INTO bookings (customer_id, class_id) VALUES (?, ?)", (customer_id, class_id))
-            db.commit()
-            db.close()
+            reserve_class(customer_id, class_id)
+        except ValueError as error:
             self.refresh_all()
-        except (ValueError, sqlite3.IntegrityError):
-            messagebox.showerror("Błąd", "Sprawdź ID klienta, ID zajęć i czy klient nie jest już zapisany.")
+            messagebox.showerror("Błąd", str(error))
+            return
+        except sqlite3.Error:
+            messagebox.showerror("Błąd", "Nie udało się zapisać klienta. Odśwież listę i spróbuj ponownie.")
+            return
+        self.participant_class.set(next((label for label, value in self.participant_classes.items() if value == class_id), "Wszystkie zajęcia"))
+        self.refresh_all()
+        self.booking_notice.set("Klient został zapisany na zajęcia.")
 
 
 class LoginScreen:
